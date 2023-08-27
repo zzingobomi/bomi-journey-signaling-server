@@ -1,153 +1,129 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response } from "express";
 import { createServer } from "http";
-import { WebSocketServer, WebSocket, RawData } from "ws";
-import { v4 as uuidv4 } from "uuid";
+import { Server, Socket } from "socket.io";
 
 enum MessageType {
   Hello = "hello",
-  Users = "users",
-  Candidate = "candidate",
+  JoinRoom = "joinRoom",
+  OtherUsers = "otherUsers",
   Offer = "offer",
   Answer = "answer",
+  Candidate = "candidate",
+  Disconnect = "disconnect",
+  OtherExit = "otherExit",
 }
 
-interface ISignalingMessage {
-  event: string;
-  payload: string;
-}
+type OfferPayload = {
+  sdp: RTCSessionDescriptionInit;
+  offerSendId: string;
+};
 
-interface ICandidatePayload {
+type AnswerPayload = {
+  sdp: RTCSessionDescriptionInit;
+  answerSendId: string;
+};
+
+type CandidatePayload = {
   candidate: RTCIceCandidate;
-  candidateSendID: string;
-  candidateReceiveID: string;
-}
+  candidateSendId: string;
+};
 
-interface IOfferPayload {
-  sdp: RTCSessionDescription;
-  offerSendID: string;
-  offerReceiveID: string;
-}
-
-interface IAnswerPayload {
-  sdp: RTCSessionDescription;
-  answerSendID: string;
-  answerReceiveID: string;
+class RoomSocket extends Socket {
+  roomId?: string;
 }
 
 const app = express();
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+const wsServer = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
-const clients: WebSocket[] = [];
+const MAX_CAPACITY = process.env.MAX_CLIENTS
+  ? parseInt(process.env.MAX_CLIENTS, 10)
+  : 500;
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("hello bomi-journey signaling server");
+  res.send("Hello BomiJourney Signaling server");
 });
 
-wss.on("connection", function connection(ws: WebSocket) {
-  ws.id = uuidv4();
-  clients.push(ws);
-  console.log("connection:", ws.id);
+const rooms = wsServer.sockets.adapter.rooms;
 
-  const helloMessage: ISignalingMessage = {
-    event: MessageType.Hello,
-    payload: ws.id,
-  };
-  ws.send(JSON.stringify(helloMessage));
+wsServer.on("connection", (socket: RoomSocket) => {
+  socket.emit(MessageType.Hello, "bomi");
+  console.log("conn:", socket.id);
 
-  ws.on("message", (data: RawData) => {
-    const { event, payload } = JSON.parse(data.toString()) as ISignalingMessage;
-    console.log("ws:", ws.id, " event:", event);
+  socket.on(MessageType.JoinRoom, (data) => {
+    const { roomId } = data;
 
-    switch (event) {
-      case MessageType.Hello:
-        break;
-      case MessageType.Users:
-        handleUsers(ws);
-        break;
-      case MessageType.Candidate:
-        handleCandidate(payload);
-        break;
-      case MessageType.Offer:
-        handleOffer(payload);
-        break;
-      case MessageType.Answer:
-        handleAnswer(payload);
-        break;
+    const roomInfo = rooms.get(roomId);
+    if (roomInfo && roomInfo.size >= MAX_CAPACITY) {
+      console.error(`${roomId} is full`);
+      return;
     }
+
+    socket.join(roomId);
+    socket.roomId = roomId;
+
+    const updatedRoomInfo = rooms.get(roomId) ?? new Set();
+
+    const otherUsers = Array.from(updatedRoomInfo).filter(
+      (client) => client !== socket.id
+    );
+
+    socket.emit(MessageType.OtherUsers, otherUsers);
   });
 
-  ws.on("close", () => handleClose(ws));
+  socket.on(
+    MessageType.Offer,
+    (data: OfferPayload & { offerReceiveId: string }) => {
+      const offerPayload: OfferPayload = {
+        sdp: data.sdp,
+        offerSendId: data.offerSendId,
+      };
+
+      socket.to(data.offerReceiveId).emit(MessageType.Offer, offerPayload);
+    }
+  );
+
+  socket.on(
+    MessageType.Answer,
+    (data: AnswerPayload & { answerReceiveId: string }) => {
+      const answerPayload: AnswerPayload = {
+        sdp: data.sdp,
+        answerSendId: data.answerSendId,
+      };
+
+      socket.to(data.answerReceiveId).emit(MessageType.Answer, answerPayload);
+    }
+  );
+
+  socket.on(
+    MessageType.Candidate,
+    (data: CandidatePayload & { candidateReceiveId: string }) => {
+      const candidatePayload: CandidatePayload = {
+        candidate: data.candidate,
+        candidateSendId: data.candidateSendId,
+      };
+      socket
+        .to(data.candidateReceiveId)
+        .emit(MessageType.Candidate, candidatePayload);
+    }
+  );
+
+  socket.on(MessageType.Disconnect, () => {
+    console.log("disconnected socket:", socket.id);
+    if (!socket.roomId) {
+      console.error("check socket roomId");
+      return;
+    }
+    const roomInfo = rooms.get(socket.roomId);
+    if (roomInfo) {
+      socket.to(socket.roomId).emit(MessageType.OtherExit, socket.id);
+    }
+  });
 });
-
-// ========================
-// Message Handler
-// ========================
-
-function handleUsers(ws: WebSocket) {
-  const users = clients
-    .filter((client) => client.id !== ws.id)
-    .map((client) => client.id);
-
-  const userMessage: ISignalingMessage = {
-    event: MessageType.Users,
-    payload: JSON.stringify(users),
-  };
-
-  ws.send(JSON.stringify(userMessage));
-}
-
-function handleCandidate(payload: string) {
-  const candidatePayload = JSON.parse(payload) as ICandidatePayload;
-
-  const candidateMessage: ISignalingMessage = {
-    event: MessageType.Candidate,
-    payload: JSON.stringify(candidatePayload),
-  };
-
-  findClientById(candidatePayload.candidateReceiveID)?.send(
-    JSON.stringify(candidateMessage)
-  );
-}
-
-function handleOffer(payload: string) {
-  const offerPayload = JSON.parse(payload) as IOfferPayload;
-
-  const offerMessage: ISignalingMessage = {
-    event: MessageType.Offer,
-    payload: JSON.stringify(offerPayload),
-  };
-
-  findClientById(offerPayload.offerReceiveID)?.send(
-    JSON.stringify(offerMessage)
-  );
-}
-
-function handleAnswer(payload: string) {
-  const answerPayload = JSON.parse(payload) as IAnswerPayload;
-
-  const answerMessage: ISignalingMessage = {
-    event: MessageType.Answer,
-    payload: JSON.stringify(answerPayload),
-  };
-
-  findClientById(answerPayload.answerReceiveID)?.send(
-    JSON.stringify(answerMessage)
-  );
-}
-
-function handleClose(ws: WebSocket) {
-  const position = clients.indexOf(ws);
-  clients.splice(position, 1);
-  console.log("connection closed:", ws.id);
-}
-
-// ========================
-// Utility
-// ========================
-
-function findClientById(id: string) {
-  return clients.find((client) => client.id === id);
-}
 
 export default httpServer;

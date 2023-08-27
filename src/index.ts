@@ -7,6 +7,6 @@ import httpServer from "./server";
 // **** Run **** //
 
 const SERVER_START_MSG =
-  "httpServer server started on port: " + EnvVars.Port.toString();
+  "BomiJourney Signaling server started on port: " + EnvVars.Port.toString();
 
 httpServer.listen(EnvVars.Port, () => logger.info(SERVER_START_MSG));
