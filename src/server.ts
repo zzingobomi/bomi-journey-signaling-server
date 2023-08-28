@@ -11,6 +11,7 @@ enum MessageType {
   Candidate = "candidate",
   Disconnect = "disconnect",
   OtherExit = "otherExit",
+  GameServer = "gameserver",
 }
 
 type OfferPayload = {
@@ -30,6 +31,7 @@ type CandidatePayload = {
 
 class RoomSocket extends Socket {
   roomId?: string;
+  type?: string;
 }
 
 const app = express();
@@ -55,8 +57,8 @@ wsServer.on("connection", (socket: RoomSocket) => {
   socket.emit(MessageType.Hello, "bomi");
   console.log("conn:", socket.id);
 
-  socket.on(MessageType.JoinRoom, (data) => {
-    const { roomId } = data;
+  socket.on(MessageType.JoinRoom, async (data) => {
+    const { roomId, type } = data;
 
     const roomInfo = rooms.get(roomId);
     if (roomInfo && roomInfo.size >= MAX_CAPACITY) {
@@ -66,14 +68,29 @@ wsServer.on("connection", (socket: RoomSocket) => {
 
     socket.join(roomId);
     socket.roomId = roomId;
+    socket.type = type;
 
-    const updatedRoomInfo = rooms.get(roomId) ?? new Set();
+    switch (type) {
+      case "node":
+        const updatedRoomInfo = rooms.get(roomId) ?? new Set();
 
-    const otherUsers = Array.from(updatedRoomInfo).filter(
-      (client) => client !== socket.id
-    );
+        const otherUsers = Array.from(updatedRoomInfo).filter(
+          (client) => client !== socket.id
+        );
 
-    socket.emit(MessageType.OtherUsers, otherUsers);
+        socket.emit(MessageType.OtherUsers, otherUsers);
+        break;
+      case "gameServer":
+        break;
+      case "user":
+        const roomSockets = await wsServer.in(roomId).fetchSockets();
+        const gameServerSocket = roomSockets.find(
+          // @ts-ignore
+          (socket) => socket.type === "gameServer"
+        );
+        socket.emit(MessageType.GameServer, gameServerSocket?.id);
+        break;
+    }
   });
 
   socket.on(
