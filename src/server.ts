@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { createServer } from "http";
-import { Server, Socket } from "socket.io";
+import { RemoteSocket, Server, Socket } from "socket.io";
+import { DefaultEventsMap } from "socket.io/dist/typed-events";
 
 enum MessageType {
   Hello = "hello",
@@ -34,6 +35,11 @@ class RoomSocket extends Socket {
   type?: string;
 }
 
+interface RemoteRoomSocekt extends RemoteSocket<DefaultEventsMap, any> {
+  roomId?: string;
+  type?: string;
+}
+
 const app = express();
 const httpServer = createServer(app);
 const wsServer = new Server(httpServer, {
@@ -59,6 +65,7 @@ wsServer.on("connection", (socket: RoomSocket) => {
 
   socket.on(MessageType.JoinRoom, async (data) => {
     const { roomId, type } = data;
+    console.log("on", roomId, type);
 
     const roomInfo = rooms.get(roomId);
     if (roomInfo && roomInfo.size >= MAX_CAPACITY) {
@@ -84,11 +91,12 @@ wsServer.on("connection", (socket: RoomSocket) => {
         break;
       case "user":
         const roomSockets = await wsServer.in(roomId).fetchSockets();
-        const gameServerSocket = roomSockets.find(
-          // @ts-ignore
-          (socket) => socket.type === "gameServer"
-        );
-        socket.emit(MessageType.GameServer, gameServerSocket?.id);
+        const gameServerSocketId =
+          roomSockets.find(
+            (socket: RemoteRoomSocekt) => socket.type === "gameserver"
+          )?.id || "";
+
+        socket.emit(MessageType.GameServer, gameServerSocketId);
         break;
     }
   });
@@ -137,6 +145,7 @@ wsServer.on("connection", (socket: RoomSocket) => {
       return;
     }
     const roomInfo = rooms.get(socket.roomId);
+    console.log(roomInfo);
     if (roomInfo) {
       socket.to(socket.roomId).emit(MessageType.OtherExit, socket.id);
     }
