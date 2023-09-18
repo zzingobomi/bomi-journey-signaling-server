@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node Admin</title>
+    <style>
+      .room-area {
+        font-size: 14px;
+        width: 200px;
+        height: 200px;
+        position: absolute;
+        box-sizing: border-box;
+        left: 0;
+        top: 0;
+        border: 1px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="area"></div>
+
+    <script type="module">
+      import { io } from "https://cdn.socket.io/4.4.1/socket.io.esm.min.js";
+
+      const areaContainer = document.getElementById("area");
+      let scale = 1;
+      let isDragging = false;
+      let lastX = 0,
+        lastY = 0,
+        curX = 0,
+        curY = 0;
+
+      const socket = io("ws://localhost:25000", {
+        reconnectionDelayMax: 10000,
+      });
+
+      socket.emit("hello", { connectType: "admin" });
+
+      socket.on("hello", (data) => {
+        socket.emit("joinRoom", { roomIds: [data] });
+      });
+
+      socket.on("nodestate", (data) => {
+        console.log("tt");
+        areaContainer.innerHTML = "";
+        for (const roomId in data) {
+          if (roomId === "admin") continue;
+
+          const roomSockets = data[roomId];
+          const [x, y] = roomId.split("_");
+          createRoomArea(x, y, roomSockets);
+        }
+      });
+
+      function createRoomArea(x, y, roomSockets) {
+        const dom = document.createElement("div");
+        dom.className = "room-area";
+        dom.style.left = x * 200 + window.innerWidth / 2 + "px";
+        dom.style.top = y * -200 + window.innerHeight / 2 + "px";
+        dom.innerText = `${x}_${y}\n${roomSockets.join("\n")}`;
+
+        areaContainer.appendChild(dom);
+      }
+
+      document.addEventListener("wheel", (event) => {
+        const wheelDelta = event.deltaY;
+        if (wheelDelta > 0) {
+          zoomOut();
+        } else {
+          zoomIn();
+        }
+      });
+
+      document.addEventListener("mousedown", (event) => {
+        isDragging = true;
+        lastX = event.clientX;
+        lastY = event.clientY;
+      });
+
+      document.addEventListener("mousemove", (event) => {
+        if (!isDragging) return;
+
+        const deltaX = event.clientX - lastX;
+        const deltaY = event.clientY - lastY;
+
+        pan(deltaX, deltaY);
+
+        lastX = event.clientX;
+        lastY = event.clientY;
+      });
+
+      document.addEventListener("mouseup", () => {
+        isDragging = false;
+      });
+
+      function zoomIn() {
+        scale += 0.1;
+        areaContainer.style.transform = `scale(${scale}) translate(${curX}px, ${curY}px)`;
+      }
+
+      function zoomOut() {
+        if (scale > 0.1) {
+          scale -= 0.1;
+          areaContainer.style.transform = `scale(${scale}) translate(${curX}px, ${curY}px)`;
+        }
+      }
+
+      function pan(dx, dy) {
+        curX = curX + dx;
+        curY = curY + dy;
+        areaContainer.style.transform = `scale(${scale}) translate(${curX}px, ${curY}px)`;
+      }
+    </script>
+  </body>
+</html>

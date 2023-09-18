@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node Client</title>
+  </head>
+  <body>
+    <div id="socket-id"></div>
+    <div id="room-id"></div>
+    <script type="module">
+      import { io } from "https://cdn.socket.io/4.4.1/socket.io.esm.min.js";
+
+      const socket = io("ws://localhost:25000", {
+        reconnectionDelayMax: 10000,
+      });
+
+      socket.emit("hello", { connectType: "node" });
+
+      socket.on("hello", (data) => {
+        console.log(data);
+        const [x, y] = data.split("_");
+        console.log("socket connected", socket.id, "roomId", x, y);
+        document.getElementById("socket-id").innerText = socket.id;
+        document.getElementById("room-id").innerText = data;
+
+        const roomIds = [];
+        const rooms = getNodeRoomCoordinates(parseInt(x), parseInt(y));
+        for (const room of rooms) {
+          roomIds.push(`${room[0]}_${room[1]}`);
+        }
+        socket.emit("joinRoom", { roomIds: roomIds });
+      });
+
+      function getNodeRoomCoordinates(x, y) {
+        const nodeRooms = [];
+
+        nodeRooms.push([x, y]); //
+        nodeRooms.push([x + 1, y]); // 오른쪽
+        nodeRooms.push([x + 1, y + 1]); // 오른쪽 위
+        nodeRooms.push([x, y + 1]); // 위
+        nodeRooms.push([x - 1, y + 1]); // 왼쪽 위
+        nodeRooms.push([x - 1, y]); // 왼쪽
+        nodeRooms.push([x - 1, y - 1]); // 왼쪽 아래
+        nodeRooms.push([x, y - 1]); // 아래
+        nodeRooms.push([x + 1, y - 1]); // 오른쪽 아래
+
+        return nodeRooms;
+      }
+    </script>
+  </body>
+</html>
