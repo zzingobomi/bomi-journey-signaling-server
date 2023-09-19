@@ -34,6 +34,24 @@
         socket.emit("joinGuestRoom", { roomIds: roomIds });
       });
 
+      socket.on("otherHosts", async (otherHosts) => {
+        for (const otherHost of otherHosts) {
+          const peerConnection = new RTCPeerConnection({
+            iceServers: [
+              {
+                urls: [
+                  "stun:stun.l.google.com:19302",
+                  "stun:stun1.l.google.com:19302",
+                  "stun:stun2.l.google.com:19302",
+                  "stun:stun3.l.google.com:19302",
+                  "stun:stun4.l.google.com:19302",
+                ],
+              },
+            ],
+          });
+        }
+      });
+
       function getGuestNodeRoomCoordinates(x, y) {
         const nodeRooms = [];
 

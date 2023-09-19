@@ -8,7 +8,11 @@ import {
   OfferPayload,
   RoomSocket,
 } from "./types";
-import { getNextSpiralCoordinate, getNodeRoomsToJson } from "./utils";
+import {
+  getNextSpiralCoordinate,
+  getNodeRoomsToJson,
+  getOtherhosts,
+} from "./utils";
 import { NodeRoom } from "./core/NodeRoom";
 
 // TODO: 중간에 빠지는 노드 처리하기
@@ -81,6 +85,10 @@ wsServer.on("connection", (socket: RoomSocket) => {
       nodeRoomMap.set(roomId, nodeRoom);
     }
     nodeRoom.SetHostId(socket.id);
+
+    const otherHosts = getOtherhosts(roomId, nodeRoomMap);
+
+    socket.emit(MessageType.OtherHosts, otherHosts);
 
     wsServer
       .to("admin")

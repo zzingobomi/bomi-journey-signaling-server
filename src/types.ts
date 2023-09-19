@@ -7,6 +7,7 @@ export enum MessageType {
   JoinHostRoom = "joinHostRoom",
   JoinGuestRoom = "joinGuestRoom",
   JoinRoom = "joinRoom",
+  OtherHosts = "otherHosts",
   OtherUsers = "otherUsers",
   Offer = "offer",
   Answer = "answer",
