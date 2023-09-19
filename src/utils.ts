@@ -20,7 +20,7 @@ export function getOtherhosts(roomId: string, rooms: Map<string, NodeRoom>) {
 
   const otherHosts = [];
 
-  for (const otherRoomId in otherRooms) {
+  for (const otherRoomId of otherRooms) {
     if (rooms.has(otherRoomId)) {
       const room = rooms.get(otherRoomId);
       if (room && room.hostId) {

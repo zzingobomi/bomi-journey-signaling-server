@@ -218,6 +218,8 @@ wsServer.on("connection", (socket: RoomSocket) => {
     //   socket.to(socket.roomId).emit(MessageType.OtherExit, socket.id);
     // }
 
+    socket.broadcast.emit(MessageType.OtherHostExit, socket.id);
+
     for (const [roomId, nodeRoom] of nodeRoomMap) {
       if (nodeRoom.hostId === socket.id) {
         nodeRoom.SetHostId("");

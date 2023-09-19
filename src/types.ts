@@ -13,6 +13,7 @@ export enum MessageType {
   Answer = "answer",
   Candidate = "candidate",
   Disconnect = "disconnect",
+  OtherHostExit = "otherHostExit",
   OtherExit = "otherExit",
   GameServer = "gameserver",
 }
