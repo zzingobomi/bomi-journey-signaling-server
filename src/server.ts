@@ -8,11 +8,7 @@ import {
   OfferPayload,
   RoomSocket,
 } from "./types";
-import {
-  getNextSpiralCoordinate,
-  getNodeRoomsToJson,
-  getPublicRoomsJson,
-} from "./utils";
+import { getNextSpiralCoordinate, getNodeRoomsToJson } from "./utils";
 import { NodeRoom } from "./core/NodeRoom";
 
 // TODO: 중간에 빠지는 노드 처리하기
@@ -50,9 +46,9 @@ wsServer.on("connection", (socket: RoomSocket) => {
   socket.on(MessageType.Hello, async (data) => {
     const { connectType } = data;
     switch (connectType) {
-      case "admin":
-        socket.emit(MessageType.Hello, "admin");
-        break;
+      // case "admin":
+      //   socket.emit(MessageType.Hello, "admin");
+      //   break;
       case "node":
         const [x, y] = getNextSpiralCoordinate(lastNodeNum++);
         socket.emit(MessageType.Hello, `${x}_${y}`);
@@ -64,6 +60,14 @@ wsServer.on("connection", (socket: RoomSocket) => {
 
   // TODO: 상대방 방의 방장하고만 접속을 하면 되지 않나?
   // TODO: user 예외처리? switch? node용 소켓인지 게임서버용 소켓인지 확인 필요?
+
+  socket.on(MessageType.JoinAdminRoom, async (data) => {
+    await socket.join("admin");
+
+    wsServer
+      .to("admin")
+      .emit("updateNodeRoom", getNodeRoomsToJson(nodeRoomMap));
+  });
 
   socket.on(MessageType.JoinHostRoom, async (data) => {
     const { roomId } = data;
@@ -117,7 +121,7 @@ wsServer.on("connection", (socket: RoomSocket) => {
     }
     socket.roomIds = roomIds;
 
-    wsServer.to("admin").emit("updateNodeRoom", getPublicRoomsJson(wsServer));
+    //wsServer.to("admin").emit("updateNodeRoom", getPublicRoomsJson(wsServer));
 
     // const { roomId, type } = data;
     // console.log("on", roomId, type);
@@ -206,7 +210,16 @@ wsServer.on("connection", (socket: RoomSocket) => {
     //   socket.to(socket.roomId).emit(MessageType.OtherExit, socket.id);
     // }
 
-    wsServer.to("admin").emit("updateNodeRoom", getPublicRoomsJson(wsServer));
+    for (const [roomId, nodeRoom] of nodeRoomMap) {
+      if (nodeRoom.hostId === socket.id) {
+        nodeRoom.SetHostId("");
+      }
+      nodeRoom.RemoveGuestId(socket.id);
+    }
+
+    wsServer
+      .to("admin")
+      .emit("updateNodeRoom", getNodeRoomsToJson(nodeRoomMap));
   });
 });
 

@@ -14,6 +14,11 @@
         left: 0;
         top: 0;
         border: 1px solid black;
+        padding: 4px;
+      }
+
+      .room-area > div:nth-child(2) {
+        color: red;
       }
     </style>
   </head>
@@ -35,30 +40,32 @@
         reconnectionDelayMax: 10000,
       });
 
-      socket.emit("hello", { connectType: "admin" });
-
-      socket.on("hello", (data) => {
-        socket.emit("joinRoom", { roomIds: [data] });
-      });
+      socket.emit("joinAdminRoom");
 
       socket.on("updateNodeRoom", (data) => {
-        console.log("tt");
         areaContainer.innerHTML = "";
         for (const roomId in data) {
-          if (roomId === "admin") continue;
-
-          const roomSockets = data[roomId];
-          const [x, y] = roomId.split("_");
-          createRoomArea(x, y, roomSockets);
+          const { name, hostId, guestIds } = data[roomId];
+          const [x, y] = name.split("_");
+          createRoomArea(x, y, name, hostId, guestIds);
         }
       });
 
-      function createRoomArea(x, y, roomSockets) {
+      function createRoomArea(x, y, name, hostId, guestIds) {
         const dom = document.createElement("div");
         dom.className = "room-area";
         dom.style.left = x * 200 + window.innerWidth / 2 + "px";
         dom.style.top = y * -200 + window.innerHeight / 2 + "px";
-        dom.innerText = `${x}_${y}\n${roomSockets.join("\n")}`;
+        dom.innerHTML = `
+          <div>
+            ${name}
+          </div>
+          <div>
+            ${hostId}
+          </div>
+          <div>
+            ${guestIds.join("\n")}
+          </div>`;
 
         areaContainer.appendChild(dom);
       }

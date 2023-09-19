@@ -3,6 +3,7 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 
 export enum MessageType {
   Hello = "hello",
+  JoinAdminRoom = "joinAdminRoom",
   JoinHostRoom = "joinHostRoom",
   JoinGuestRoom = "joinGuestRoom",
   JoinRoom = "joinRoom",

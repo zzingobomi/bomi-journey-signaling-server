@@ -8,7 +8,7 @@ export function getNodeRoomsToJson(rooms: Map<string, NodeRoom>) {
   for (const [roomId, nodeRoom] of rooms) {
     roomsJsonObject[roomId] = nodeRoom;
   }
-  return JSON.stringify(roomsJsonObject);
+  return roomsJsonObject;
 }
 
 export function getPublicRoomsJson(
