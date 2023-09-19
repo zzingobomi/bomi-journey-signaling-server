@@ -41,7 +41,7 @@
         socket.emit("joinRoom", { roomIds: [data] });
       });
 
-      socket.on("nodestate", (data) => {
+      socket.on("updateNodeRoom", (data) => {
         console.log("tt");
         areaContainer.innerHTML = "";
         for (const roomId in data) {

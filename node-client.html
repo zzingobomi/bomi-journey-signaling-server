@@ -24,18 +24,19 @@
         document.getElementById("socket-id").innerText = socket.id;
         document.getElementById("room-id").innerText = data;
 
+        socket.emit("joinHostRoom", { roomId: data });
+
         const roomIds = [];
-        const rooms = getNodeRoomCoordinates(parseInt(x), parseInt(y));
+        const rooms = getGuestNodeRoomCoordinates(parseInt(x), parseInt(y));
         for (const room of rooms) {
           roomIds.push(`${room[0]}_${room[1]}`);
         }
-        socket.emit("joinRoom", { roomIds: roomIds });
+        socket.emit("joinGuestRoom", { roomIds: roomIds });
       });
 
-      function getNodeRoomCoordinates(x, y) {
+      function getGuestNodeRoomCoordinates(x, y) {
         const nodeRooms = [];
 
-        nodeRooms.push([x, y]); //
         nodeRooms.push([x + 1, y]); // 오른쪽
         nodeRooms.push([x + 1, y + 1]); // 오른쪽 위
         nodeRooms.push([x, y + 1]); // 위

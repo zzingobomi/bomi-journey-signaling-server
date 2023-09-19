@@ -1,6 +1,15 @@
 import { Server } from "socket.io";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { SpiralDirection } from "./types";
+import { NodeRoom } from "./core/NodeRoom";
+
+export function getNodeRoomsToJson(rooms: Map<string, NodeRoom>) {
+  const roomsJsonObject: { [key: string]: NodeRoom } = {};
+  for (const [roomId, nodeRoom] of rooms) {
+    roomsJsonObject[roomId] = nodeRoom;
+  }
+  return JSON.stringify(roomsJsonObject);
+}
 
 export function getPublicRoomsJson(
   wsServer: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>
