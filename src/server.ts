@@ -40,6 +40,10 @@ app.get("/admin", (req: Request, res: Response) => {
   res.sendFile("view/admin.html", { root: __dirname });
 });
 
+app.get("/nodeid", (req: Request, res: Response) => {
+  res.send(getNextSpiralCoordinate(lastNodeNum++).join("_"));
+});
+
 const rooms = wsServer.sockets.adapter.rooms;
 
 const nodeRoomMap = new Map<string, NodeRoom>();
@@ -53,10 +57,13 @@ wsServer.on("connection", (socket: RoomSocket) => {
       // case "admin":
       //   socket.emit(MessageType.Hello, "admin");
       //   break;
-      case "node":
-        const [x, y] = getNextSpiralCoordinate(lastNodeNum++);
-        socket.emit(MessageType.Hello, `${x}_${y}`);
-        break;
+      // case "node":
+      //   const [x, y] = getNextSpiralCoordinate(lastNodeNum++);
+      //   socket.emit(MessageType.Hello, `${x}_${y}`);
+      //   break;
+      // case "gameServer":
+      //   socket.emit(MessageType.Hello, `${x}_${y}_game`);
+      //   break;
       case "user":
         break;
     }
